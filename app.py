@@ -5,7 +5,19 @@ import matplotlib.pyplot as plt
 import os
 from scipy.stats import kurtosis  # クルトシス計算用
 
-st.title("音声自動アノテーション＆データセット保存システム")
+st.title("🎙️ 音声自動アノテーション＆データセット保存システム")
+
+# 使用方法の説明
+st.markdown("""
+### 📖 使用方法
+1. **設定**: サンプリング周波数、録音時間、変化閾値、メトリクスを設定
+2. **録音**: 「録音開始」ボタンで音声を録音
+3. **確認**: 自動生成された波形とラベルを確認
+4. **編集**: 必要に応じてOK/NGラベルを手動で変更
+5. **保存**: 「データセット保存」でdataset.npzファイルとして保存
+
+---
+""")
 
 # 使用方法の説明
 st.markdown("""
@@ -21,7 +33,7 @@ st.markdown("""
 """)
 
 # 現在の作業ディレクトリを表示（保存場所の確認用）
-st.write("現在の作業ディレクトリ:", os.getcwd())
+st.write("📁 **現在の作業ディレクトリ**:", os.getcwd())
 
 # ユーザ入力：サンプリング周波数、収録時間、変化の閾値（％）
 fs = st.number_input("サンプリング周波数 (Hz):", min_value=8000, max_value=96000, value=44100, step=1000)
@@ -101,7 +113,33 @@ if st.button("録音開始"):
     ax.set_ylabel("Amplitude")
     st.pyplot(fig)
     
+    # ラベル編集用のセッションステート初期化
+    if 'editable_labels' not in st.session_state:
+        st.session_state['editable_labels'] = labels.copy()
+    else:
+        # 新しい録音データの場合は更新
+        st.session_state['editable_labels'] = labels.copy()
+    
+    # ラベル分布表示
+    st.write("### 📊 ラベル分布")
+    auto_ok = labels.count("OK")
+    auto_ng = labels.count("NG")
+    manual_ok = st.session_state['editable_labels'].count("OK")
+    manual_ng = st.session_state['editable_labels'].count("NG")
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        st.metric("自動ラベル", f"OK: {auto_ok}, NG: {auto_ng}")
+    with col2:
+        st.metric("手動ラベル", f"OK: {manual_ok}, NG: {manual_ng}")
+    
+    # ラベルリセットボタン
+    if st.button("🔄 自動ラベルに戻す"):
+        st.session_state['editable_labels'] = labels.copy()
+        st.rerun()
+    
     # 各フレームのメトリクス値と自動ラベルを表示
+
     st.write("各フレームの", metric_choice, "値と自動ラベル:")
     for i, (val, label) in enumerate(zip(metric_values, labels)):
         st.write(f"{i+1}秒: {metric_choice} = {val:.4f}, ラベル = {label}")
@@ -247,5 +285,6 @@ if st.button("💾 データセット保存", key="save_dataset_button"):
                               if st.session_state['manual_labels'][i] != st.session_state['labels'][i])
             if changed_count > 0:
                 st.write(f"🔄 手動編集: {changed_count}個のラベルが変更されました")
+
     else:
         st.error("❌ 保存するデータが見つかりません。まずは録音を実施してください。")

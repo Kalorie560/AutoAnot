@@ -1,74 +1,80 @@
-# AutoAnot - Automatic Audio Annotation System
+# AutoAnot - 音声自動アノテーションシステム
 
-AutoAnot is a Streamlit-based application for automatic audio recording, annotation, and dataset generation. The application records audio, automatically labels segments based on RMS (Root Mean Square) changes, and allows saving the annotated data as a dataset.
+AutoAnotは、音声の自動録音、アノテーション、データセット生成を行うStreamlitベースのアプリケーションです。音声を録音し、メトリクス変化に基づいてセグメントを自動的にラベル付けし、アノテーション付きデータをデータセットとして保存できます。
 
-## Features
+## 機能
 
-- Audio recording with customizable sampling rate and duration
-- Automatic annotation of 1-second audio segments based on RMS change threshold
-- Visual representation of audio waveforms with color-coded annotations (green for "OK", red for "NG")
-- RMS value display for each audio segment
-- Dataset generation and saving as .npz file for machine learning applications
+- カスタマイズ可能なサンプリングレートと録音時間での音声録音
+- メトリクス変化閾値に基づく1秒間隔の音声セグメント自動アノテーション
+- カラーコード付きアノテーション（OK=緑、NG=赤）による音声波形の視覚的表示
+- 各音声セグメントのメトリクス値表示（RMS、クルトシス、クレストファクタ）
+- 機械学習アプリケーション用の.npzファイル形式でのデータセット生成・保存
+- **ラベル手動編集機能**: 自動アノテーション後にOK/NGラベルの変更が可能
+- **波形確認しながらのラベル編集**: 収録した信号波形を確認しながらラベル変更
 
-## Requirements
+## 動作環境
 
 - Python 3.x
 - streamlit
 - numpy
 - sounddevice
 - matplotlib
+- scipy
 
-## Installation
+## インストール
 
-Clone the repository and install the required dependencies:
+リポジトリをクローンし、必要な依存関係をインストールしてください：
 
 ```bash
-# Clone the repository
+# リポジトリのクローン
 git clone <repository-url>
 cd AutoAnot
 
-# Create and activate a virtual environment (optional but recommended)
+# 仮想環境の作成と有効化（推奨）
 python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+source venv/bin/activate  # Windows: venv\Scripts\activate
 
-# Install dependencies
-pip install streamlit numpy sounddevice matplotlib
+# 依存関係のインストール
+pip install streamlit numpy sounddevice matplotlib scipy
 ```
 
-## Usage
+## 使用方法
 
-1. Run the application:
+1. アプリケーションの起動：
 
 ```bash
-# Option 1: Using the provided script
+# 方法1: 提供されたスクリプトを使用
 chmod +x run_app.sh
 ./run_app.sh
 
-# Option 2: Direct streamlit command
+# 方法2: streamlitコマンドを直接実行
 streamlit run app.py
 ```
 
-2. In the web interface:
-   - Set the sampling frequency (Hz)
-   - Set the recording duration (seconds)
-   - Set the RMS change threshold (%)
-   - Click "Record" to start recording
-   - After recording, review the automatically annotated segments
-   - Click "Save Dataset" to save the annotated data as a dataset.npz file
+2. Webインターフェースでの操作：
+   - サンプリング周波数（Hz）を設定
+   - 録音時間（秒）を設定
+   - メトリクス変化閾値（%）を設定
+   - 使用するメトリクス（RMS/クルトシス/クレストファクタ）を選択
+   - 「録音開始」をクリックして録音開始
+   - 録音後、自動アノテーションされたセグメントを確認
+   - **必要に応じてOK/NGラベルを手動で変更**
+   - 「データセット保存」をクリックしてアノテーション付きデータをdataset.npzファイルとして保存
 
-## Dataset Format
+## データセット形式
 
-The saved dataset is in .npz format with the following components:
-- `waveforms`: Array of audio segments (shape: number_of_segments × samples_per_segment)
-- `labels`: Array of labels ("OK" or "NG") for each segment
-- `fs`: Sampling frequency used for recording
+保存されるデータセットは.npz形式で、以下のコンポーネントを含みます：
+- `waveforms`: 音声セグメントの配列（形状: セグメント数 × セグメント当たりのサンプル数）
+- `labels`: 各セグメントのラベル配列（"OK" または "NG"）
+- `fs`: 録音に使用されたサンプリング周波数
+- `metric`: 使用されたメトリクスの種類
 
-## Customization
+## カスタマイズ
 
-- Modify the RMS threshold to adjust the sensitivity of automatic annotation
-- Edit `app.py` to change the annotation logic or visualization parameters
-- Modify `run_app.sh` to change server address or add additional streamlit parameters
+- メトリクス変化閾値を変更して自動アノテーションの感度を調整
+- `app.py`を編集してアノテーションロジックや可視化パラメータを変更
+- `run_app.sh`を変更してサーバーアドレスや追加のstreamlitパラメータを設定
 
-## License
+## ライセンス
 
-[Specify your license here]
+[ライセンスを指定してください]
