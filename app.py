@@ -88,6 +88,55 @@ if st.button("録音開始"):
     st.write("各フレームの", metric_choice, "値と自動ラベル:")
     for i, (val, label) in enumerate(zip(metric_values, labels)):
         st.write(f"{i+1}秒: {metric_choice} = {val:.4f}, ラベル = {label}")
+    
+    # アノテーション編集セクション
+    st.subheader("アノテーション編集")
+    st.write("各時間セクションのラベルを必要に応じて変更してください:")
+    
+    # 編集されたラベルを保存するための初期化
+    if 'edited_labels' not in st.session_state:
+        st.session_state['edited_labels'] = labels.copy()
+    
+    # 各セグメントに対してOK/NG選択のUIを表示
+    edited_labels = []
+    for i in range(len(labels)):
+        col1, col2 = st.columns([1, 3])
+        with col1:
+            st.write(f"{i}～{i+1}秒:")
+        with col2:
+            # ラジオボタンで OK/NG を選択
+            current_label = st.session_state['edited_labels'][i] if i < len(st.session_state['edited_labels']) else labels[i]
+            selected_label = st.radio(
+                f"ラベル選択 ({i}～{i+1}秒)",
+                options=["OK", "NG"],
+                index=0 if current_label == "OK" else 1,
+                key=f"label_radio_{i}",
+                horizontal=True
+            )
+            edited_labels.append(selected_label)
+    
+    # 編集されたラベルをセッションステートに保存
+    st.session_state['edited_labels'] = edited_labels
+    
+    # 編集後のラベルで波形を再表示
+    if st.button("編集後のラベルで波形を更新"):
+        fig, ax = plt.subplots(figsize=(10, 4))
+        t = np.linspace(0, duration, int(duration * fs))
+        ax.plot(t, audio_data, color='gray', alpha=0.5)
+        
+        for i, segment in enumerate(segments):
+            start_time = i
+            end_time = i + 1
+            seg_t = np.linspace(start_time, end_time, len(segment))
+            color = "green" if edited_labels[i] == "OK" else "red"
+            ax.plot(seg_t, segment, color=color, linewidth=2)
+            ax.text((start_time + end_time) / 2, np.max(segment), edited_labels[i],
+                    color=color, fontsize=12, ha='center')
+        
+        ax.set_xlabel("Time (s)")
+        ax.set_ylabel("Amplitude")
+        ax.set_title("編集後のアノテーション表示")
+        st.pyplot(fig)
 
 # アノテーション編集機能
 if 'segments' in st.session_state:
@@ -164,5 +213,6 @@ if st.button("データセット保存"):
                  metric=st.session_state['metric_choice'])
         st.success(f"データセットを保存しました ({save_path})")
         st.write("現在の作業ディレクトリ:", os.getcwd())
+        st.write("保存されたラベル:", final_labels)
     else:
         st.error("保存するデータが見つかりません。まずは録音を実施してください。")
