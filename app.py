@@ -20,7 +20,7 @@ threshold_ratio = threshold_percentage / 100  # 例: 20%なら0.2
 metric_choice = st.selectbox("使用するメトリクスを選択してください", options=["RMS", "クルトシス", "クレストファクタ"])
 
 # 録音開始ボタン
-if st.button("録音開始"):
+if st.button("録音開始", key="start_recording_button"):
     st.write("録音中...")
     audio_data = sd.rec(int(duration * fs), samplerate=fs, channels=1, dtype='float32')
     sd.wait()  # 録音終了待ち
@@ -249,18 +249,74 @@ if all(key in st.session_state for key in ['segments', 'labels', 'fs', 'metric_c
         ax.set_ylabel("Amplitude")
         st.pyplot(fig)
 
+# アノテーション編集機能
+if 'labels' in st.session_state:
+    st.header("アノテーション編集")
+    st.write("各時間セクションのラベルを手動で変更できます:")
+    
+    # 編集されたラベルを保存するためのセッションステート初期化
+    if 'edited_labels' not in st.session_state:
+        st.session_state['edited_labels'] = st.session_state['labels'].copy()
+    
+    # 各セグメントに対してラジオボタンを表示
+    for i in range(len(st.session_state['labels'])):
+        col1, col2 = st.columns([1, 2])
+        with col1:
+            st.write(f"{i}～{i+1}秒:")
+        with col2:
+            # ラジオボタンに一意のキーを設定
+            current_label = st.session_state['edited_labels'][i]
+            selected_label = st.radio(
+                "ラベル",
+                options=["OK", "NG"],
+                index=0 if current_label == "OK" else 1,
+                key=f"label_radio_{i}",
+                horizontal=True,
+                label_visibility="collapsed"
+            )
+            st.session_state['edited_labels'][i] = selected_label
+    
+    # 編集後の波形を更新するボタン
+    if st.button("編集後のラベルで波形を更新", key="update_waveform_button"):
+        if 'segments' in st.session_state:
+            # 編集されたラベルで波形を再描画
+            fig, ax = plt.subplots(figsize=(10, 4))
+            duration = len(st.session_state['segments'])
+            fs = st.session_state['fs']
+            
+            # 全体の波形データを再構築
+            full_audio = np.concatenate(st.session_state['segments'])
+            t = np.linspace(0, duration, len(full_audio))
+            ax.plot(t, full_audio, color='gray', alpha=0.5)
+            
+            # 編集されたラベルで色分け
+            for i, segment in enumerate(st.session_state['segments']):
+                start_time = i
+                end_time = i + 1
+                seg_t = np.linspace(start_time, end_time, len(segment))
+                color = "green" if st.session_state['edited_labels'][i] == "OK" else "red"
+                ax.plot(seg_t, segment, color=color, linewidth=2)
+                ax.text((start_time + end_time) / 2, np.max(segment), st.session_state['edited_labels'][i],
+                        color=color, fontsize=12, ha='center')
+            
+            ax.set_xlabel("Time (s)")
+            ax.set_ylabel("Amplitude")
+            ax.set_title("編集後のラベルによる波形表示")
+            st.pyplot(fig)
+
 # データセット保存ボタン
-if st.button("データセット保存"):
+if st.button("データセット保存", key="save_dataset_button"):
     if all(key in st.session_state for key in ['segments', 'labels', 'fs', 'metric_choice']):
         segments_array = np.array(st.session_state['segments'])
 
-        # 編集されたラベルがある場合はそれを使用、なければ元のラベルを使用
-
+        # 編集されたラベルがあれば使用、なければ元のラベルを使用
         if 'edited_labels' in st.session_state:
             labels_array = np.array(st.session_state['edited_labels'])
+            st.write("編集されたラベルでデータセットを保存します。")
         else:
             labels_array = np.array(st.session_state['labels'])
-
+            st.write("自動生成されたラベルでデータセットを保存します。")
+        
         save_path = "dataset.npz"  # 必要に応じて絶対パスに変更可
         np.savez(save_path,
                  waveforms=segments_array,
