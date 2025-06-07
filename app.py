@@ -20,7 +20,7 @@ threshold_ratio = threshold_percentage / 100  # 例: 20%なら0.2
 metric_choice = st.selectbox("使用するメトリクスを選択してください", options=["RMS", "クルトシス", "クレストファクタ"])
 
 # 録音開始ボタン
-if st.button("録音開始"):
+if st.button("録音開始", key="start_recording_button"):
     st.write("録音中...")
     audio_data = sd.rec(int(duration * fs), samplerate=fs, channels=1, dtype='float32')
     sd.wait()  # 録音終了待ち
@@ -89,18 +89,83 @@ if st.button("録音開始"):
     for i, (val, label) in enumerate(zip(metric_values, labels)):
         st.write(f"{i+1}秒: {metric_choice} = {val:.4f}, ラベル = {label}")
 
-# データセット保存ボタン
-if st.button("データセット保存"):
-    if all(key in st.session_state for key in ['segments', 'labels', 'fs', 'metric_choice']):
-        segments_array = np.array(st.session_state['segments'])
-        labels_array = np.array(st.session_state['labels'])
-        save_path = "dataset.npz"  # 必要に応じて絶対パスに変更可
-        np.savez(save_path,
-                 waveforms=segments_array,
-                 labels=labels_array,
-                 fs=st.session_state['fs'],
-                 metric=st.session_state['metric_choice'])
-        st.success(f"データセットを保存しました ({save_path})")
-        st.write("現在の作業ディレクトリ:", os.getcwd())
-    else:
-        st.error("保存するデータが見つかりません。まずは録音を実施してください。")
+# アノテーション編集機能
+if 'segments' in st.session_state and 'labels' in st.session_state:
+    st.markdown("---")
+    st.subheader("🏷️ アノテーション編集")
+    st.write("各時間セクションのラベルを編集できます。編集後は'波形を更新'ボタンを押してください。")
+    
+    # 編集されたラベルを保存するセッションステート
+    if 'edited_labels' not in st.session_state:
+        st.session_state['edited_labels'] = st.session_state['labels'].copy()
+    
+    # 各セグメントにラジオボタンを表示
+    for i in range(len(st.session_state['labels'])):
+        col1, col2 = st.columns([1, 3])
+        with col1:
+            st.write(f"**{i}〜{i+1}秒:**")
+        with col2:
+            # ラジオボタンでOK/NG選択
+            current_value = st.session_state['edited_labels'][i]
+            selected = st.radio(
+                "", 
+                options=["OK", "NG"], 
+                index=0 if current_value == "OK" else 1,
+                key=f"label_radio_{i}",
+                horizontal=True
+            )
+            # 選択されたラベルをセッションステートに保存
+            st.session_state['edited_labels'][i] = selected
+    
+    # 編集後の波形更新ボタン
+    if st.button("📊 編集後のラベルで波形を更新", key="update_waveform_button"):
+        # 編集されたラベルで波形を再描画
+        fig, ax = plt.subplots(figsize=(10, 4))
+        t = np.linspace(0, len(st.session_state['segments']), len(st.session_state['segments']) * st.session_state['fs'])
+        
+        # 全体波形をグレーで描画
+        full_audio = np.concatenate(st.session_state['segments'])
+        ax.plot(t, full_audio, color='gray', alpha=0.5)
+        
+        # 編集されたラベルで各セグメントを色分け
+        for i, segment in enumerate(st.session_state['segments']):
+            start_time = i
+            end_time = i + 1
+            seg_t = np.linspace(start_time, end_time, len(segment))
+            color = "green" if st.session_state['edited_labels'][i] == "OK" else "red"
+            ax.plot(seg_t, segment, color=color, linewidth=2)
+            ax.text((start_time + end_time) / 2, np.max(segment), st.session_state['edited_labels'][i],
+                   color=color, fontsize=12, ha='center')
+        
+        ax.set_xlabel("Time (s)")
+        ax.set_ylabel("Amplitude")
+        ax.set_title("編集後のアノテーション")
+        st.pyplot(fig)
+        
+        st.success("✅ 波形を更新しました！")
+
+# データセット保存ボタン（編集されたラベルがあれば使用）
+if 'segments' in st.session_state:
+    st.markdown("---")
+    if st.button("💾 データセット保存", key="save_dataset_button"):
+        if all(key in st.session_state for key in ['segments', 'labels', 'fs', 'metric_choice']):
+            segments_array = np.array(st.session_state['segments'])
+            
+            # 編集されたラベルがあればそれを使用、なければ元のラベル
+            if 'edited_labels' in st.session_state:
+                labels_array = np.array(st.session_state['edited_labels'])
+                st.info("📝 編集されたアノテーションを使用してデータセットを保存します")
+            else:
+                labels_array = np.array(st.session_state['labels'])
+                st.info("🤖 自動生成されたアノテーションを使用してデータセットを保存します")
+            
+            save_path = "dataset.npz"  # 必要に応じて絶対パスに変更可
+            np.savez(save_path,
+                     waveforms=segments_array,
+                     labels=labels_array,
+                     fs=st.session_state['fs'],
+                     metric=st.session_state['metric_choice'])
+            st.success(f"✅ データセットを保存しました ({save_path})")
+            st.write("📁 現在の作業ディレクトリ:", os.getcwd())
+        else:
+            st.error("❌ 保存するデータが見つかりません。まずは録音を実施してください。")
