@@ -288,3 +288,65 @@ if st.button("💾 データセット保存", key="save_dataset_button"):
 
     else:
         st.error("❌ 保存するデータが見つかりません。まずは録音を実施してください。")
+
+# 📄 JSON変換セクション
+st.markdown("### 📄 JSONファイル変換")
+st.write("保存されたdataset.npzファイルをdataset.jsonに変換できます。")
+
+if st.button("📄 dataset.npz → dataset.json 変換", key="convert_to_json_button"):
+    import json
+    
+    npz_path = "dataset.npz"
+    json_path = "dataset.json"
+    
+    if os.path.exists(npz_path):
+        try:
+            # Load npz file
+            data = np.load(npz_path)
+            
+            # Required arrays to include
+            required_keys = ['waveforms', 'labels', 'fs', 'metric', 'auto_labels']
+            json_data = {}
+            
+            for key in required_keys:
+                if key in data:
+                    value = data[key]
+                    
+                    # Convert numpy arrays/values to JSON-serializable formats
+                    if isinstance(value, np.ndarray):
+                        if value.dtype.kind in ['U', 'S']:  # String arrays
+                            json_data[key] = value.tolist()
+                        elif value.dtype == np.float32 or value.dtype == np.float64:
+                            json_data[key] = value.tolist()
+                        elif value.dtype == np.int32 or value.dtype == np.int64:
+                            json_data[key] = value.tolist()
+                        else:
+                            json_data[key] = value.tolist()
+                    elif isinstance(value, (np.integer, np.floating)):
+                        json_data[key] = value.item()  # Convert numpy scalar to Python scalar
+                    else:
+                        json_data[key] = value  # String or other JSON-serializable type
+            
+            # Save as JSON
+            with open(json_path, 'w', encoding='utf-8') as f:
+                json.dump(json_data, f, indent=2, ensure_ascii=False)
+            
+            st.success(f"✅ JSONファイルを生成しました！")
+            st.write(f"📁 保存先: {json_path}")
+            st.write(f"📍 作業ディレクトリ: {os.getcwd()}")
+            
+            # Show summary
+            st.write("### 📊 変換サマリー")
+            for key, value in json_data.items():
+                if isinstance(value, list):
+                    if len(value) > 0 and isinstance(value[0], list):  # 2D array
+                        st.write(f"- {key}: {len(value)}×{len(value[0])} 配列")
+                    else:  # 1D array  
+                        st.write(f"- {key}: {len(value)} 要素の配列")
+                else:
+                    st.write(f"- {key}: {value}")
+            
+        except Exception as e:
+            st.error(f"❌ 変換エラー: {str(e)}")
+    else:
+        st.error(f"❌ {npz_path} ファイルが見つかりません。まずはデータセットを保存してください。")
